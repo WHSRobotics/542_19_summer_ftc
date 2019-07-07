@@ -4,9 +4,9 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
-import org.whitneyrobotics.ftc.lib.subsys.MotorSubsystem;
-import org.whitneyrobotics.ftc.lib.subsys.drivetrain.MecanumDrivetrain;
-import org.whitneyrobotics.ftc.lib.util.Toggler;
+import lib.subsys.MotorSubsystem;
+import lib.subsys.drivetrain.MecanumDrivetrain;
+import lib.util.Toggler;
 
 
 /**
@@ -94,7 +94,20 @@ public class Drivetrain implements MecanumDrivetrain, MotorSubsystem {
         frontRight.setPower(rightPower);
         backRight.setPower(rightPower);
     }
+    public void operateMecanumDrive(double gamepadInputX, double gamepadInputY, double gamepadinputTurn){
+        double r = Math.hypot(gamepadInputX, gamepadInputY);
+        double robotAngle = Math.atan2(gamepadInputY, gamepadInputX) - Math.PI / 4;
+        double rightX = gamepadinputTurn;
+        final double v1 = r * Math.cos(robotAngle) + rightX;
+        final double v2 = r * Math.sin(robotAngle) - rightX;
+        final double v3 = r * Math.sin(robotAngle) + rightX;
+        final double v4 = r * Math.cos(robotAngle) - rightX;
 
+        frontLeft.setPower(v1);
+        frontRight.setPower(v2);
+        backLeft.setPower(v3);
+        backRight.setPower(v4);
+    }
     @Override
     public void switchOrientation(boolean gamepadInput) {
         orientationSwitch.changeState(gamepadInput);

@@ -1,4 +1,4 @@
-package org.whitneyrobotics.ftc.lib.subsys.intake;
+package lib.subsys.intake;
 
 /**
  * Created by Jason on 10/20/2017.

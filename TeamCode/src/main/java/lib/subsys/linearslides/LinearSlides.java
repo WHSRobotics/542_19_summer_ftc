@@ -1,4 +1,4 @@
-package org.whitneyrobotics.ftc.lib.subsys.linearslides;
+package lib.subsys.linearslides;
 
 /**
  * Created by Jason on 10/20/2017.

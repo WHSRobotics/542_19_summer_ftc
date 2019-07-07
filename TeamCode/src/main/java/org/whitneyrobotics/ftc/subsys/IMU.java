@@ -6,7 +6,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
 import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
-import org.whitneyrobotics.ftc.lib.util.Functions;
+import lib.util.Functions;
 
 /**
  * Created by Jason on 10/30/2017.

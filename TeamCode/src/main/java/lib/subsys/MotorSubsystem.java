@@ -1,4 +1,4 @@
-package org.whitneyrobotics.ftc.lib.subsys;
+package lib.subsys;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
 

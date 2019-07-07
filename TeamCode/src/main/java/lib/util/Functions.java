@@ -1,4 +1,4 @@
-package org.whitneyrobotics.ftc.lib.util;
+package lib.util;
 
 /**
  * General purpose functions class

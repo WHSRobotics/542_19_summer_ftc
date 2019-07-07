@@ -1,8 +1,8 @@
-package org.whitneyrobotics.ftc.lib.subsys.robot;
+package lib.subsys.robot;
 
 
-import org.whitneyrobotics.ftc.lib.util.Coordinate;
-import org.whitneyrobotics.ftc.lib.util.Position;
+import lib.util.Coordinate;
+import lib.util.Position;
 
 /**
  * WHSRobot interface, containing methods for autonomous navigation.
@@ -93,7 +93,7 @@ public interface WHSRobot {
      * <p>estimateHeading is a method for estimating the robot's heading by the use of the
      * IMU. As of right now, this is just the IMU value + IMU bias (set during
      * {@link #setInitialCoordinate(Coordinate)} run through
-     * {@link org.whitneyrobotics.ftc.lib.util.Functions#normalizeAngle(double)}.</p>
+     * {@link lib.util.Functions#normalizeAngle(double)}.</p>
      * <p>The method then updates the internal {@link Coordinate} object in the WHSRobot.</p>
      * <p>This method should be called every loop cycle, (probably) along with {@link #estimatePosition()}.</p>
      *

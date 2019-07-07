@@ -3,12 +3,12 @@ package org.whitneyrobotics.ftc.subsys;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.whitneyrobotics.ftc.subsys.Lift;
-import org.whitneyrobotics.ftc.lib.subsys.robot.WHSRobot;
-import org.whitneyrobotics.ftc.lib.util.Coordinate;
-import org.whitneyrobotics.ftc.lib.util.Functions;
-import org.whitneyrobotics.ftc.lib.util.PIDController;
-import org.whitneyrobotics.ftc.lib.util.Position;
-import org.whitneyrobotics.ftc.lib.util.RobotConstants;
+import lib.subsys.robot.WHSRobot;
+import lib.util.Coordinate;
+import lib.util.Functions;
+import lib.util.PIDController;
+import lib.util.Position;
+import lib.util.RobotConstants;
 
 /**
  * Created by Jason on 10/20/2017.
