@@ -9,6 +9,7 @@ import lib.util.Functions;
 import lib.util.PIDController;
 import lib.util.Position;
 import lib.util.RobotConstants;
+import lib.util.Toggler;
 
 /**
  * Created by Jason on 10/20/2017.
@@ -18,8 +19,8 @@ public class WHSRobotImpl implements WHSRobot {
 
     public Drivetrain drivetrain;
     public IMU imu;
-    public Intake intake;
-    public Lift lift;
+    //public Intake intake;
+    //public Lift lift;
 
     Coordinate currentCoord;
     private double targetHeading; //field frame
@@ -55,6 +56,14 @@ public class WHSRobotImpl implements WHSRobot {
     private boolean driveToTargetInProgress = false;
     private boolean rotateToTargetInProgress = false;
 
+    private double v1;
+    private double v2;
+    private double v3;
+    private double v4;
+    private double rightX;
+    private double robotAngle;
+    private double r;
+
     public WHSRobotImpl(HardwareMap hardwareMap){
         DEADBAND_DRIVE_TO_TARGET = RobotConstants.DEADBAND_DRIVE_TO_TARGET; //in mm
         DEADBAND_ROTATE_TO_TARGET = RobotConstants.DEADBAND_ROTATE_TO_TARGET; //in degrees
@@ -74,8 +83,8 @@ public class WHSRobotImpl implements WHSRobot {
 
         drivetrain = new Drivetrain(hardwareMap);
         imu = new IMU(hardwareMap);
-        lift = new Lift(hardwareMap);
-        intake = new Intake(hardwareMap);
+        // lift = new Lift(hardwareMap);
+        //intake = new Intake(hardwareMap);
 
         currentCoord = new Coordinate(0.0, 0.0, 150.0, 0.0);
     }
@@ -295,5 +304,19 @@ public class WHSRobotImpl implements WHSRobot {
 
         backVector = Functions.transformCoordinates(C_f2b,frontVector);
         return backVector;
+    }
+   public void operateMecanumDrive(double gamepadInputX, double gamepadInputY, double gamepadInputTurn){
+        r = Math.hypot(gamepadInputX, gamepadInputY);
+        robotAngle = (Math.atan2(gamepadInputY, gamepadInputX) + (getCoordinate().getHeading() * Math.PI / 180)) - Math.PI / 4;
+        rightX = -gamepadInputTurn;
+        v1 = r * Math.cos(robotAngle) + rightX;
+        v2 = r * Math.sin(robotAngle) - rightX;
+        v3 = r * Math.sin(robotAngle) + rightX;
+        v4 = r * Math.cos(robotAngle) - rightX;
+        drivetrain.frontLeft.setPower(v1);
+        drivetrain.frontRight.setPower(v2);
+        drivetrain.backLeft.setPower(v3);
+        drivetrain.backRight.setPower(v4);
+
     }
 }
