@@ -21,10 +21,10 @@ public class MecanumDriveTest extends OpMode{
         robot.estimateHeading();
         telemetry.addData("Current Heading", robot.getCoordinate().getHeading());
             if (gamepad1.left_bumper){
-            robot.operateMecanumDrive(gamepad1.left_stick_x/2.54, gamepad1.left_stick_y/2.54, gamepad1.right_stick_x/2.54);
+            robot.drivetrain.operateMecanumDrive(gamepad1.left_stick_x/2.54, gamepad1.left_stick_y/2.54, gamepad1.right_stick_x/2.54, robot.getCoordinate().getHeading());
         }else{
-            robot.operateMecanumDrive(gamepad1.left_stick_x, gamepad1.left_stick_y, gamepad1.right_stick_x);
+            robot.drivetrain.operateMecanumDrive(gamepad1.left_stick_x, gamepad1.left_stick_y, gamepad1.right_stick_x, robot.getCoordinate().getHeading());
             }
-
+        robot.drivetrain.switchFieldCentric(gamepad1.b);
     }
 }

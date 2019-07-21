@@ -24,4 +24,8 @@ public interface MecanumDrivetrain {
 
     void setRunMode(DcMotor.RunMode runMode);
 
+    void operateMecanumDrive(double gamepadInputX, double gamepadInputY, double gamepadInputTurn, double heading);
+
+    void switchFieldCentric(boolean gamepadInput);
+
 }

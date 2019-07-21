@@ -21,7 +21,7 @@ public class Drivetrain implements MecanumDrivetrain, MotorSubsystem {
     public DcMotor backRight;
 
     private Toggler orientationSwitch = new Toggler(2);
-
+    private Toggler fieldCentricSwitch = new Toggler(2);
 
     private static final double RADIUS_OF_WHEEL = 50;               //in mm
     private static final double CIRC_OF_WHEEL = RADIUS_OF_WHEEL * 2 * Math.PI;
@@ -30,6 +30,15 @@ public class Drivetrain implements MecanumDrivetrain, MotorSubsystem {
     private static final double ENCODER_TICKS_PER_MM = ENCODER_TICKS_PER_REV / (CIRC_OF_WHEEL * GEAR_RATIO);
 
     private double[] encoderValues = {0.0, 0.0};
+
+    private double v1;
+    private double v2;
+    private double v3;
+    private double v4;
+    private double rightX;
+    private double robotAngle;
+    private double r;
+
 
     public Drivetrain (HardwareMap driveMap) {
 
@@ -44,13 +53,10 @@ public class Drivetrain implements MecanumDrivetrain, MotorSubsystem {
         backRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         //For 40s. TODO: Change this when we get more 20s.
-        frontRight.setDirection(DcMotorSimple.Direction.REVERSE);
-        backRight.setDirection(DcMotorSimple.Direction.REVERSE);
-
+        frontLeft.setDirection(DcMotorSimple.Direction.REVERSE);
+        backLeft.setDirection(DcMotorSimple.Direction.REVERSE);
 
         orientationSwitch.setState(1);
-
-
     }
 
     @Override
@@ -163,4 +169,30 @@ public class Drivetrain implements MecanumDrivetrain, MotorSubsystem {
     public double getAbsPowerAverage() {
         return (Math.abs(frontLeft.getPower()) + Math.abs(frontRight.getPower()))/2;
     }
+
+    @Override
+    public void operateMecanumDrive(double gamepadInputX, double gamepadInputY, double gamepadInputTurn, double heading){
+        r = Math.hypot(gamepadInputX, -gamepadInputY);
+        robotAngle = (Math.atan2(-gamepadInputY, gamepadInputX) - Math.PI / 4);
+        if (fieldCentricSwitch.currentState() == 1) {
+            robotAngle -= heading * Math.PI / 180;
+        }
+
+        rightX = gamepadInputTurn;
+        v1 = r * Math.cos(robotAngle) + rightX;
+        v2 = r * Math.sin(robotAngle) - rightX;
+        v3 = r * Math.sin(robotAngle) + rightX;
+        v4 = r * Math.cos(robotAngle) - rightX;
+        frontLeft.setPower(v1);
+        frontRight.setPower(v2);
+        backLeft.setPower(v3);
+        backRight.setPower(v4);
+    }
+
+    @Override
+    public void switchFieldCentric(boolean gamepadInput) {
+        fieldCentricSwitch.changeState(gamepadInput);
+    }
+
+
 }
