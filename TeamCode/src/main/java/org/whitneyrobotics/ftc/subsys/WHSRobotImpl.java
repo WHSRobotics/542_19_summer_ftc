@@ -1,5 +1,7 @@
 package org.whitneyrobotics.ftc.subsys;
 
+import android.util.Range;
+
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 import org.whitneyrobotics.ftc.subsys.Lift;
@@ -55,6 +57,11 @@ public class WHSRobotImpl implements WHSRobot {
 
     private boolean driveToTargetInProgress = false;
     private boolean rotateToTargetInProgress = false;
+
+    private double [] encoderDeltas;
+    private double robotX;
+    private double robotY;
+    private double distance;
 
     public WHSRobotImpl(HardwareMap hardwareMap){
         DEADBAND_DRIVE_TO_TARGET = RobotConstants.DEADBAND_DRIVE_TO_TARGET; //in mm
@@ -182,7 +189,23 @@ public class WHSRobotImpl implements WHSRobot {
             firstRotateLoop = true;
         }
     }
+    public void swerveToTarget(Position targetPosition, double movementSpeed, double preferredAngle, double turnSpeed) {
+        double targetAngle = Math.atan2(targetPosition.getY() - currentCoord.getY(), targetPosition.getX() - currentCoord.getX());
+        double angleToTarget = Functions.normalizeAngle(targetAngle - currentCoord.getHeading());
+        double distanceToTarget = Math.hypot(targetPosition.getX() - currentCoord.getX(), targetPosition.getY() - currentCoord.getY());
 
+        double relativeXToPoint = Math.cos(angleToTarget) * distanceToTarget;
+        double relativeYtoPoint = Math.sin(angleToTarget) * distanceToTarget;
+
+        double movementXPower = (relativeXToPoint / (Math.abs(relativeXToPoint) + Math.abs(relativeYtoPoint)))*movementSpeed;
+        double movementYPower = (relativeYtoPoint / (Math.abs(relativeXToPoint) + Math.abs(relativeYtoPoint)))*movementSpeed;
+
+        double relativeTurnAngle = angleToTarget - Math.toRadians(180) + preferredAngle;
+        double movementTurn = com.qualcomm.robotcore.util.Range.clip(relativeTurnAngle/Math.toRadians(30), -1,1) * turnSpeed;
+
+        drivetrain.applyMovement(movementXPower, movementYPower,movementTurn);
+
+    }
     @Override
     public boolean driveToTargetInProgress() {
         return driveToTargetInProgress;
@@ -195,41 +218,13 @@ public class WHSRobotImpl implements WHSRobot {
 
     @Override
     public void estimatePosition() {
-
-        Position estimatedPos;
-        if(rotateToTargetInProgress) {
-            //if rotating, do NOT update position and get rid of encoder values as it turns
-            double[] encoderValues = drivetrain.getEncoderDelta();
-
-            estimatedPos = currentCoord.getPos();
-        }
-        else {
-            if (/*driveToTargetInProgress & */!rotateToTargetInProgress) {
-                double[] encoderValues = drivetrain.getEncoderDelta();
-                double encoderPosL = encoderValues[0];
-                double encoderPosR = encoderValues[1];
-
-                double encoderAvg = (encoderPosL + encoderPosR) * 0.5;
-                double hdg = currentCoord.getHeading();
-                double dist = drivetrain.encToMM(encoderAvg);
-
-                double xPos = currentCoord.getX() + dist * Functions.cosd(hdg);
-                double yPos = currentCoord.getY() + dist * Functions.sind(hdg);
-
-                estimatedPos = new Position(xPos, yPos, currentCoord.getZ());
-
-                currentCoord.setX(xPos);
-                currentCoord.setY(yPos);
-            } else if (rotateToTargetInProgress) {
-                drivetrain.getEncoderDelta();
-                estimatedPos = currentCoord.getPos();
-
-            } else {
-                estimatedPos = currentCoord.getPos();
-            }
-        }
+        encoderDeltas = drivetrain.getEncoderDelta();
+        distance = drivetrain.encToMM((encoderDeltas[0] + encoderDeltas[1])/2);
+        robotX += distance*Math.cos(Math.toRadians(getCoordinate().getHeading()));
+        robotY += distance*Math.sin(Math.toRadians(getCoordinate().getHeading()));
+        currentCoord.setX(robotX);
+        currentCoord.setY(robotY);
     }
-
     @Override
     public void estimateHeading() {
         double currentHeading;
