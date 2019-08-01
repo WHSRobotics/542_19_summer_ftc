@@ -1,8 +1,6 @@
 package lib.subsys.robot;
 
 
-import org.whitneyrobotics.ftc.subsys.Drivetrain;
-
 import lib.util.Coordinate;
 import lib.util.Position;
 
@@ -126,7 +124,5 @@ public interface WHSRobot {
      * @see #estimatePosition()
      */
     public Coordinate getCoordinate();
-
-    public Drivetrain drivetrain();
 
 }
