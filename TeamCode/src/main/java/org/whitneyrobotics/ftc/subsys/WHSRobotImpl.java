@@ -4,6 +4,7 @@ import android.util.Range;
 
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
+import org.firstinspires.ftc.robotcore.external.Func;
 import org.whitneyrobotics.ftc.subsys.Lift;
 import lib.subsys.robot.WHSRobot;
 import lib.util.Coordinate;
@@ -12,6 +13,9 @@ import lib.util.PIDController;
 import lib.util.Position;
 import lib.util.RobotConstants;
 import lib.util.Toggler;
+
+import static lib.util.Functions.cosd;
+import static lib.util.Functions.sind;
 
 /**
  * Created by Jason on 10/20/2017.
@@ -63,6 +67,7 @@ public class WHSRobotImpl implements WHSRobot {
     private double robotY;
     private double distance;
 
+    public double swerveDistanceToTargetDebug;
     public WHSRobotImpl(HardwareMap hardwareMap){
         DEADBAND_DRIVE_TO_TARGET = RobotConstants.DEADBAND_DRIVE_TO_TARGET; //in mm
         DEADBAND_ROTATE_TO_TARGET = RobotConstants.DEADBAND_ROTATE_TO_TARGET; //in degrees
@@ -190,19 +195,24 @@ public class WHSRobotImpl implements WHSRobot {
         }
     }
     public void swerveToTarget(Position targetPosition, double movementSpeed, double preferredAngle, double turnSpeed) {
-        double targetAngle = Math.atan2(targetPosition.getY() - currentCoord.getY(), targetPosition.getX() - currentCoord.getX());
+        double targetAngle = Math.toDegrees(Math.atan2(targetPosition.getY() - currentCoord.getY(), targetPosition.getX() - currentCoord.getX()));
         double angleToTarget = Functions.normalizeAngle(targetAngle - currentCoord.getHeading());
         double distanceToTarget = Math.hypot(targetPosition.getX() - currentCoord.getX(), targetPosition.getY() - currentCoord.getY());
 
-        double relativeXToPoint = Math.cos(angleToTarget) * distanceToTarget;
-        double relativeYtoPoint = Math.sin(angleToTarget) * distanceToTarget;
+        double relativeXToPoint = Functions.cosd(angleToTarget) * distanceToTarget;
+        double relativeYtoPoint = Functions.sind(angleToTarget) * distanceToTarget;
 
         double movementXPower = (relativeXToPoint / (Math.abs(relativeXToPoint) + Math.abs(relativeYtoPoint)))*movementSpeed;
         double movementYPower = (relativeYtoPoint / (Math.abs(relativeXToPoint) + Math.abs(relativeYtoPoint)))*movementSpeed;
 
-        double relativeTurnAngle = angleToTarget - Math.toRadians(180) + preferredAngle;
-        double movementTurn = com.qualcomm.robotcore.util.Range.clip(relativeTurnAngle/Math.toRadians(30), -1,1) * turnSpeed;
+        double relativeTurnAngle = angleToTarget - 90 + preferredAngle;
+        double movementTurn = com.qualcomm.robotcore.util.Range.clip(relativeTurnAngle/30, -1,1) * turnSpeed;
 
+        swerveDistanceToTargetDebug = distanceToTarget;
+
+        if(distanceToTarget<100){
+            movementTurn = 0;
+        }
         drivetrain.applyMovement(movementXPower, movementYPower,movementTurn);
 
     }
@@ -257,8 +267,8 @@ public class WHSRobotImpl implements WHSRobot {
         Position fieldVector;
         double heading = currentCoord.getHeading();
 
-        double[][] C_b2f = {{Functions.cosd(heading),  -Functions.sind(heading),  0},
-                {Functions.sind(heading),   Functions.cosd(heading),  0},
+        double[][] C_b2f = {{cosd(heading),  -Functions.sind(heading),  0},
+                {Functions.sind(heading),   cosd(heading),  0},
                 {0,                         0,                        1}};
 
         fieldVector = Functions.transformCoordinates(C_b2f,bodyVector);
@@ -271,8 +281,8 @@ public class WHSRobotImpl implements WHSRobot {
         Position bodyVector;
         double heading = currentCoord.getHeading();
 
-        double[][] C_f2b = {{ Functions.cosd(heading),   Functions.sind(heading),  0},
-                {-Functions.sind(heading),   Functions.cosd(heading),  0},
+        double[][] C_f2b = {{ cosd(heading),   Functions.sind(heading),  0},
+                {-Functions.sind(heading),   cosd(heading),  0},
                 { 0,                         0,                        1}};
 
         bodyVector = Functions.transformCoordinates(C_f2b,fieldVector);
