@@ -13,7 +13,7 @@ import lib.util.Position;
 public class SwerveToTargetTest extends OpMode {
     WHSRobotImpl robot;
     Coordinate startingCoordinate = new Coordinate(0,0,0,0);
-    Position p1 = new Position(600,600,150);
+    Position p1 = new Position(0,600,150);
 
     @Override
     public void init() {
@@ -26,7 +26,7 @@ public class SwerveToTargetTest extends OpMode {
         robot.estimateHeading();
         robot.estimatePosition();
 
-        robot.swerveToTarget(p1,.25,0,.15);
+        robot.swerveToTarget(p1,.25,0,0);
         telemetry.addData("Distance To Target", robot.swerveDistanceToTargetDebug);
         telemetry.addData("x", robot.getCoordinate().getX());
         telemetry.addData("y", robot.getCoordinate().getY());

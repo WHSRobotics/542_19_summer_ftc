@@ -12,7 +12,14 @@ public class Functions
                     Math.pow(target.getY() - current.getY(), 2));
         return distance;
     }
-
+    public static double[][] positionArrayToDoubleArray(Position[] positions){
+        double[][] doublePositions = new double[positions.length][2];
+        for (int i=0;i<positions.length;i++){
+            doublePositions[i][0] = positions[i].getX();
+            doublePositions[i][1] = positions[i].getY();
+        }
+        return  doublePositions;
+    }
     /** Converts angles from 0-360 to -180-180 */
     public static double normalizeAngle(double angle){
 

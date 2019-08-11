@@ -15,6 +15,7 @@ import lib.util.RobotConstants;
 import lib.util.Toggler;
 
 import static lib.util.Functions.cosd;
+import static lib.util.Functions.positionArrayToDoubleArray;
 import static lib.util.Functions.sind;
 
 /**
@@ -66,6 +67,8 @@ public class WHSRobotImpl implements WHSRobot {
     private double robotX;
     private double robotY;
     private double distance;
+
+    private static double MAXIMUM_ACCELERATION = 0;
 
     public double swerveDistanceToTargetDebug;
     public WHSRobotImpl(HardwareMap hardwareMap){
@@ -194,28 +197,140 @@ public class WHSRobotImpl implements WHSRobot {
             firstRotateLoop = true;
         }
     }
-    public void swerveToTarget(Position targetPosition, double movementSpeed, double preferredAngle, double turnSpeed) {
-        double targetAngle = Math.toDegrees(Math.atan2(targetPosition.getY() - currentCoord.getY(), targetPosition.getX() - currentCoord.getX()));
-        double angleToTarget = Functions.normalizeAngle(targetAngle - currentCoord.getHeading());
-        double distanceToTarget = Math.hypot(targetPosition.getX() - currentCoord.getX(), targetPosition.getY() - currentCoord.getY());
 
-        double relativeXToPoint = Functions.cosd(angleToTarget) * distanceToTarget;
-        double relativeYtoPoint = Functions.sind(angleToTarget) * distanceToTarget;
+    public void swerveToTarget(Position[] targetPositions, int numToInject, double weightSmooth, double tolerance, double velocityConstant){
+        double targetDoubles[][] = positionArrayToDoubleArray(targetPositions)
+        double[][] injectedPath =  inject(targetDoubles,numToInject);
+        double[][] smoothedPath =  smoothPath(injectedPath,1-weightSmooth,weightSmooth, tolerance);
+        double [] distanceAtPoint = distanceAtPoint(smoothedPath);
+        double []  curvatureAtPoint = calculateCurvature(smoothedPath);
+    }
 
-        double movementXPower = (relativeXToPoint / (Math.abs(relativeXToPoint) + Math.abs(relativeYtoPoint)))*movementSpeed;
-        double movementYPower = (relativeYtoPoint / (Math.abs(relativeXToPoint) + Math.abs(relativeYtoPoint)))*movementSpeed;
-
-        double relativeTurnAngle = angleToTarget - 90 + preferredAngle;
-        double movementTurn = com.qualcomm.robotcore.util.Range.clip(relativeTurnAngle/30, -1,1) * turnSpeed;
-
-        swerveDistanceToTargetDebug = distanceToTarget;
-
-        if(distanceToTarget<100){
-            movementTurn = 0;
+    double [] calculateTargetVelocities(double[][] smoothedPath, double k ){
+        double[] targetVelocities = new double[smoothedPath.length];
+        double a = MAXIMUM_ACCELERATION;
+        for (int i = smoothedPath.length-1; i>=0; i--){
+            double distance = Math.hypot(Math.abs(smoothedPath[i][0] - smoothedPath[i+1][0]), Math.abs(smoothedPath[i+1][1]-smoothedPath[i][1]));
+            double targetVelocity = Math.min(k/calculateCurvature(smoothedPath)[i], Math.sqrt(targetVelocities[i+1] + 2 *a* distance))
         }
-        drivetrain.applyMovement(movementXPower, movementYPower,movementTurn);
+    }
+    double[] calculateCurvature(double[][]smoothedPath){
+        double [] curvatureArray = new double[smoothedPath.length];
+        curvatureArray[0] = 0;
+        curvatureArray[smoothedPath.length] =0;
+        for(int i = 1; i<smoothedPath.length ; i++){
+            double x1 = smoothedPath[i][0] + 0.0001;
+            double y1 = smoothedPath [i][1];
+
+            double x2 = smoothedPath[i-1][0];
+            double y2 = smoothedPath [i-1][1];
+
+            double x3 = smoothedPath[i+1][0];
+            double y3 = smoothedPath [i+1][1];
+
+            double k1 = 0.5*(Math.pow(x1,2) + Math.pow(y1,2)-Math.pow(x2,2)-Math.pow(y2,2))/(x1-x2);
+            double k2 = (y1-y2)/(x1-x2);
+
+            double b = 0.5*(Math.pow(x2,2)-2*x2*k1+Math.pow(y2,2)-Math.pow(x3,2)+2*x3*k1-Math.pow(y3,2))/(x3*k2-y3+y2-x2*k2);
+            double a = k1-k2*b;
+
+            Double r = new Double(Math.sqrt(Math.pow(x1-a,2) + (Math.pow(y1-b,2))));
+            if (r.isNaN()){
+                r = 0.0;
+            }
+            double curvature = 1/r;
+
+            curvatureArray[i] = curvature;
+        }
+     return curvatureArray;
+    }
+
+    double [] distanceAtPoint(double[][] smoothPath){
+        double[] distanceArray = new double[smoothPath.length];
+        distanceArray[0] = 0;
+        for (int i = 1; i<=smoothPath.length; i++){
+            distanceArray[i] = distanceArray[i-1] + Math.hypot(Math.abs(smoothPath[i][0] - smoothPath[i-1][0]), Math.abs(smoothPath[i-1][1]-smoothPath[i][1]));
+        }
+        return distanceArray;
+    }
+
+    public double[][] smoothPath(double[][] path, double weight_data, double weight_smooth, double tolerance)
+    {
+
+        //copy array
+        double[][] newPath = doubleArrayCopy(path);
+
+        double change = tolerance;
+        while(change >= tolerance)
+        {
+            change = 0.0;
+            for(int i=1; i<path.length-1; i++)
+                for(int j=0; j<path[i].length; j++)
+                {
+                    double aux = newPath[i][j];
+                    newPath[i][j] += weight_data * (path[i][j] - newPath[i][j]) + weight_smooth * (newPath[i-1][j] + newPath[i+1][j] - (2.0 * newPath[i][j]));
+                    change += Math.abs(aux - newPath[i][j]);
+                }
+        }
+
+        return newPath;
 
     }
+    public static double[][] doubleArrayCopy(double[][] arr)
+    {
+
+        //size first dimension of array
+        double[][] temp = new double[arr.length][arr[0].length];
+
+        for(int i=0; i<arr.length; i++)
+        {
+            //Resize second dimension of array
+            temp[i] = new double[arr[i].length];
+
+            //Copy Contents
+            for(int j=0; j<arr[i].length; j++)
+                temp[i][j] = arr[i][j];
+        }
+
+        return temp;
+
+    }
+    private double[][] inject(double[][] orig, int numToInject) {
+        double morePoints[][];
+
+        //create extended 2 Dimensional array to hold additional points
+        morePoints = new double[orig.length + ((numToInject)*(orig.length-1))][2];
+
+        int index=0;
+
+        //loop through original array
+        for(int i=0; i<orig.length-1; i++)
+        {
+            //copy first
+            morePoints[index][0] = orig[i][0];
+            morePoints[index][1] = orig[i][1];
+            index++;
+
+            for(int j=1; j<numToInject+1; j++)
+            {
+                //calculate intermediate x points between j and j+1 original points
+                morePoints[index][0] = j*((orig[i+1][0]-orig[i][0])/(numToInject+1))+orig[i][0];
+
+                //calculate intermediate y points  between j and j+1 original points
+                morePoints[index][1] = j*((orig[i+1][1]-orig[i][1])/(numToInject+1))+orig[i][1];
+
+                index++;
+            }
+        }
+
+        //copy last
+        morePoints[index][0] =orig[orig.length-1][0];
+        morePoints[index][1] =orig[orig.length-1][1];
+        index++;
+
+        return morePoints;
+    }
+
     @Override
     public boolean driveToTargetInProgress() {
         return driveToTargetInProgress;
