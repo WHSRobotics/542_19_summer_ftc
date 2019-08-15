@@ -1,22 +1,18 @@
 package org.whitneyrobotics.ftc.subsys;
 
-import android.util.Range;
-
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
-import org.firstinspires.ftc.robotcore.external.Func;
-import org.whitneyrobotics.ftc.subsys.Lift;
 import lib.subsys.robot.WHSRobot;
 import lib.util.Coordinate;
 import lib.util.Functions;
 import lib.util.PIDController;
 import lib.util.Position;
 import lib.util.RobotConstants;
-import lib.util.Toggler;
 
+import static lib.util.Functions.calculateSmallestValue;
 import static lib.util.Functions.cosd;
+import static lib.util.Functions.distanceFormula;
 import static lib.util.Functions.positionArrayToDoubleArray;
-import static lib.util.Functions.sind;
 
 /**
  * Created by Jason on 10/20/2017.
@@ -69,6 +65,11 @@ public class WHSRobotImpl implements WHSRobot {
     private double distance;
 
     private static double MAXIMUM_ACCELERATION = 0;
+    public int lastClosestPoint = 0;
+    private int lastTIndex =0;
+    private double newTValue = 0;
+    private int tValueIndex;
+
 
     public double swerveDistanceToTargetDebug;
     public WHSRobotImpl(HardwareMap hardwareMap){
@@ -198,23 +199,45 @@ public class WHSRobotImpl implements WHSRobot {
         }
     }
 
-    public void swerveToTarget(Position[] targetPositions, int numToInject, double weightSmooth, double tolerance, double velocityConstant){
-        double targetDoubles[][] = positionArrayToDoubleArray(targetPositions)
+    public void swerveToTarget(Position[] targetPositions, int numToInject, double weightSmooth, double tolerance, double velocityConstant, double lookaheadDistance){
+        double targetDoubles[][] = positionArrayToDoubleArray(targetPositions);
         double[][] injectedPath =  inject(targetDoubles,numToInject);
         double[][] smoothedPath =  smoothPath(injectedPath,1-weightSmooth,weightSmooth, tolerance);
-        double [] distanceAtPoint = distanceAtPoint(smoothedPath);
+        double [] distanceAtPoint = calculateDistanceAtPoint(smoothedPath);
         double []  curvatureAtPoint = calculateCurvature(smoothedPath);
+        for (int i = lastTIndex; i<smoothedPath.length-1; i++){
+            double[] startPoint = {smoothedPath[i][0], smoothedPath[i][1]};
+            double[] endPoint = {smoothedPath[i+1][0], smoothedPath[i+1][1]};
+            double currentTValue = calculateT(startPoint, endPoint, lookaheadDistance);
+            if (currentTValue != Double.NaN && currentTValue> newTValue) {
+                newTValue = currentTValue;
+                tValueIndex = i;
+            }
+        }
+        double[] calculatedTStartPoint = {smoothedPath[tValueIndex][0], smoothedPath[tValueIndex][1]};
+        double[] calculatedTEndPoint = {smoothedPath[tValueIndex+1][0], smoothedPath[tValueIndex+1][1]};
+        double[] lookaheadPoint = Functions.Vectors.add(calculatedTStartPoint,Functions.Vectors.scale(newTValue,Functions.Vectors.subtract(calculatedTEndPoint, calculatedTStartPoint)));
+
     }
 
-    double [] calculateTargetVelocities(double[][] smoothedPath, double k ){
+    private double [] calculateTargetVelocities(double[][] smoothedPath, double k ){
         double[] targetVelocities = new double[smoothedPath.length];
         double a = MAXIMUM_ACCELERATION;
         for (int i = smoothedPath.length-1; i>=0; i--){
             double distance = Math.hypot(Math.abs(smoothedPath[i][0] - smoothedPath[i+1][0]), Math.abs(smoothedPath[i+1][1]-smoothedPath[i][1]));
-            double targetVelocity = Math.min(k/calculateCurvature(smoothedPath)[i], Math.sqrt(targetVelocities[i+1] + 2 *a* distance))
+            double targetVelocity = Math.min(k/calculateCurvature(smoothedPath)[i], Math.sqrt(targetVelocities[i+1] + 2 *a* distance));
         }
+        return targetVelocities;
     }
-    double[] calculateCurvature(double[][]smoothedPath){
+
+    private double calculateClosestPoint(double[][] smoothedPath, double robotX, double robotY){
+        double [] distances = new double[smoothedPath.length];
+        for(int i = lastClosestPoint; i<smoothedPath.length; i++){
+            distances[i] = distanceFormula(smoothedPath[i][0],smoothedPath[i][1], robotX,robotY);
+        }
+        return distances[calculateSmallestValue(distances)];
+    }
+    private double[] calculateCurvature(double[][]smoothedPath){
         double [] curvatureArray = new double[smoothedPath.length];
         curvatureArray[0] = 0;
         curvatureArray[smoothedPath.length] =0;
@@ -245,7 +268,65 @@ public class WHSRobotImpl implements WHSRobot {
      return curvatureArray;
     }
 
-    double [] distanceAtPoint(double[][] smoothPath){
+    /**
+     * this is an ed function that calculates the fractional index i think
+     * @param lineStart
+     * @param lineEnd
+     * @param lookaheadDistance
+     * @return
+     */
+    private double calculateT(double[]lineStart, double []lineEnd, double lookaheadDistance) {
+        double[] robotVector = {currentCoord.getX(), currentCoord.getY()};
+
+        double[] d = Functions.Vectors.subtract(lineStart, lineEnd);
+        double[] f = Functions.Vectors.subtract(lineStart, robotVector);
+        double r = lookaheadDistance;
+
+        double a = Functions.Vectors.dot(d,d);
+        double b = 2 * Functions.Vectors.dot(f,d);
+        double c = Functions.Vectors.dot(f,f) - r * r;
+        double t = Double.NaN;
+
+        double discriminant = b * b - 4 * a * c;
+        if (discriminant < 0) {
+            // no intersection
+        } else {
+            // ray didn't totally miss sphere,
+            // so there is a solution to
+            // the equation.
+
+            discriminant = Math.sqrt(discriminant);
+
+            // either solution may be on or off the ray so need to test both
+            // t1 is always the smaller value, because BOTH discriminant and
+            // a are nonnegative.
+            double t1 = (-b - discriminant) / (2 * a);
+            double t2 = (-b + discriminant) / (2 * a);
+
+
+            // 3x HIT cases:
+            //          -o->             --|-->  |            |  --|->
+            // Impale(t1 hit,t2 hit), Poke(t1 hit,t2>1), ExitWound(t1<0, t2 hit),
+
+            // 3x MISS cases:
+            //       ->  o                     o ->              | -> |
+            // FallShort (t1>1,t2>1), Past (t1<0,t2<0), CompletelyInside(t1<0, t2>1)
+
+            if (t1 >= 0 && t1 <= 1) {
+                // t1 is the intersection, and it's closer than t2
+                // (since t1 uses -b - discriminant)
+                // Impale, Poke
+                t = t1;
+            }
+            if (t2>=0 && t2<=1) {
+                t = t2;
+            }
+
+
+        }
+        return t;
+    }
+    private double [] calculateDistanceAtPoint(double[][] smoothPath){
         double[] distanceArray = new double[smoothPath.length];
         distanceArray[0] = 0;
         for (int i = 1; i<=smoothPath.length; i++){
