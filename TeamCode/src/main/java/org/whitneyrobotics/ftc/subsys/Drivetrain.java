@@ -1,8 +1,11 @@
 package org.whitneyrobotics.ftc.subsys;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 import lib.subsys.MotorSubsystem;
 import lib.subsys.drivetrain.MecanumDrivetrain;
@@ -15,18 +18,19 @@ import lib.util.Toggler;
 
 public class Drivetrain implements MecanumDrivetrain, MotorSubsystem {
 
-    public DcMotor frontLeft;
-    public DcMotor frontRight;
-    public DcMotor backLeft;
-    public DcMotor backRight;
+    public DcMotorEx frontLeft;
+    public DcMotorEx frontRight;
+    public DcMotorEx backLeft;
+    public DcMotorEx backRight;
 
     private Toggler orientationSwitch = new Toggler(2);
     private Toggler fieldCentricSwitch = new Toggler(2);
 
+    private static final double TRACK_WIDTH = 470;
     private static final double RADIUS_OF_WHEEL = 50;               //in mm
     private static final double CIRC_OF_WHEEL = RADIUS_OF_WHEEL * 2 * Math.PI;
-    private static final double ENCODER_TICKS_PER_REV = 537.6;      //Neverest 40 TODO: Change when we get 20s.
-    private static final double GEAR_RATIO = 7.0/9.0;
+    private static final double ENCODER_TICKS_PER_REV = 1120;      //Neverest 40 TODO: Change when we get 20s.
+    private static final double GEAR_RATIO = 1.0;
     private static final double ENCODER_TICKS_PER_MM = ENCODER_TICKS_PER_REV / (CIRC_OF_WHEEL * GEAR_RATIO);
 
     private double[] encoderValues = {0.0, 0.0};
@@ -42,10 +46,10 @@ public class Drivetrain implements MecanumDrivetrain, MotorSubsystem {
 
     public Drivetrain (HardwareMap driveMap) {
 
-        frontLeft = driveMap.dcMotor.get("driveFL");
-        frontRight = driveMap.dcMotor.get("driveFR");
-        backLeft = driveMap.dcMotor.get("driveBL");
-        backRight = driveMap.dcMotor.get("driveBR");
+        frontLeft = driveMap.get(DcMotorEx.class, "driveFL");
+        frontRight = driveMap.get(DcMotorEx.class, "driveFR");
+        backLeft = driveMap.get(DcMotorEx.class, "driveBL");
+        backRight = driveMap.get(DcMotorEx.class, "driveBR");
 
         frontLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         frontRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
@@ -53,10 +57,10 @@ public class Drivetrain implements MecanumDrivetrain, MotorSubsystem {
         backRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         //For 40s. TODO: Change this when we get more 20s.
-/*
+
         frontLeft.setDirection(DcMotorSimple.Direction.REVERSE);
         backLeft.setDirection(DcMotorSimple.Direction.REVERSE);
-*/
+
 
         orientationSwitch.setState(1);
     }
@@ -113,28 +117,29 @@ public class Drivetrain implements MecanumDrivetrain, MotorSubsystem {
         return orientationSwitch.currentState() == 0 ? "normal" : "reversed";
     }
 
-
+    public double getTrackWidth() {
+        return TRACK_WIDTH;
+    }
 
     public double getRightEncoderPosition()
     {
         /*double rightTotal = backRight.getCurrentPosition() + frontRight.getCurrentPosition();
         return rightTotal * 0.5;*/
-        return backRight.getCurrentPosition();
+        return frontRight.getCurrentPosition();
     }
 
     public double getLeftEncoderPosition()
     {
         /*double leftTotal = backLeft.getCurrentPosition() +frontLeft.getCurrentPosition();
         return leftTotal * 0.5;*/
-        return frontLeft.getCurrentPosition();
+        return backLeft.getCurrentPosition();
     }
 
     public double getEncoderPosition() {
         double position = frontRight.getCurrentPosition() + frontLeft.getCurrentPosition() + backRight.getCurrentPosition() + backLeft.getCurrentPosition();
         return position * 0.25;
     }
-    public double[] getEncoderDelta()
-    {
+    public double[] getEncoderDelta() {
         double currentLeft = getLeftEncoderPosition();
         double currentRight = getRightEncoderPosition();
 
@@ -146,6 +151,10 @@ public class Drivetrain implements MecanumDrivetrain, MotorSubsystem {
         return encoderDistances;
     }
 
+    public double[] getWheelVelocities() {
+        double[] wheelVelocities = {encToMM(backLeft.getVelocity()), encToMM(frontRight.getVelocity())};
+        return wheelVelocities;
+    }
 
     @Override
     public double encToMM(double encoderTicks) {

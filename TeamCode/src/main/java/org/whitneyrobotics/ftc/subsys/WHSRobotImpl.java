@@ -9,7 +9,7 @@ import lib.util.PIDController;
 import lib.util.Position;
 import lib.util.RobotConstants;
 
-import static lib.util.Functions.calculateSmallestValue;
+import static lib.util.Functions.calculateIndexOfSmallestValue;
 import static lib.util.Functions.cosd;
 import static lib.util.Functions.distanceFormula;
 import static lib.util.Functions.positionArrayToDoubleArray;
@@ -59,20 +59,12 @@ public class WHSRobotImpl implements WHSRobot {
     private boolean driveToTargetInProgress = false;
     private boolean rotateToTargetInProgress = false;
 
-    private double [] encoderDeltas;
+    private double[] encoderDeltas;
     private double robotX;
     private double robotY;
     private double distance;
 
-    private static double MAXIMUM_ACCELERATION = 0;
-    public int lastClosestPoint = 0;
-    private int lastTIndex =0;
-    private double newTValue = 0;
-    private int tValueIndex;
-
-
-    public double swerveDistanceToTargetDebug;
-    public WHSRobotImpl(HardwareMap hardwareMap){
+    public WHSRobotImpl(HardwareMap hardwareMap) {
         DEADBAND_DRIVE_TO_TARGET = RobotConstants.DEADBAND_DRIVE_TO_TARGET; //in mm
         DEADBAND_ROTATE_TO_TARGET = RobotConstants.DEADBAND_ROTATE_TO_TARGET; //in degrees
 
@@ -132,7 +124,7 @@ public class WHSRobotImpl implements WHSRobot {
                 // this stuff may be causing the robot to oscillate around the target position
                 if (distanceToTarget < 0) {
                     power = -power;
-                } else if (distanceToTarget > 0){
+                } else if (distanceToTarget > 0) {
                     power = Math.abs(power);
                 }
                 if (Math.abs(distanceToTarget) > DEADBAND_DRIVE_TO_TARGET) {
@@ -167,8 +159,7 @@ public class WHSRobotImpl implements WHSRobot {
         if (backwards) {
             angleToTarget = Functions.normalizeAngle(angleToTarget + 180); //-180 to 180 deg
             driveBackwards = true;
-        }
-        else {
+        } else {
             angleToTarget = Functions.normalizeAngle(angleToTarget);
             driveBackwards = false;
         }
@@ -184,232 +175,18 @@ public class WHSRobotImpl implements WHSRobot {
         rotateController.setConstants(ROTATE_KP, ROTATE_KI, ROTATE_KD);
         rotateController.calculate(angleToTarget);
 
-        double power = (rotateController.getOutput() >= 0 ? 1 : -1) * (Functions.map(Math.abs(rotateController.getOutput()),  0, 180, ROTATE_MIN, ROTATE_MAX));
+        double power = (rotateController.getOutput() >= 0 ? 1 : -1) * (Functions.map(Math.abs(rotateController.getOutput()), 0, 180, ROTATE_MIN, ROTATE_MAX));
 
         if (Math.abs(angleToTarget) > DEADBAND_ROTATE_TO_TARGET/* && rotateController.getDerivative() < 40*/) {
             drivetrain.operateLeft(-power);
             drivetrain.operateRight(power);
             rotateToTargetInProgress = true;
-        }
-        else {
+        } else {
             drivetrain.operateLeft(0.0);
             drivetrain.operateRight(0.0);
             rotateToTargetInProgress = false;
             firstRotateLoop = true;
         }
-    }
-
-    public void swerveToTarget(Position[] targetPositions, int numToInject, double weightSmooth, double tolerance, double velocityConstant, double lookaheadDistance){
-        double targetDoubles[][] = positionArrayToDoubleArray(targetPositions);
-        double[][] injectedPath =  inject(targetDoubles,numToInject);
-        double[][] smoothedPath =  smoothPath(injectedPath,1-weightSmooth,weightSmooth, tolerance);
-        double [] distanceAtPoint = calculateDistanceAtPoint(smoothedPath);
-        double []  curvatureAtPoint = calculateCurvature(smoothedPath);
-        for (int i = lastTIndex; i<smoothedPath.length-1; i++){
-            double[] startPoint = {smoothedPath[i][0], smoothedPath[i][1]};
-            double[] endPoint = {smoothedPath[i+1][0], smoothedPath[i+1][1]};
-            double currentTValue = calculateT(startPoint, endPoint, lookaheadDistance);
-            if (currentTValue != Double.NaN && currentTValue> newTValue) {
-                newTValue = currentTValue;
-                tValueIndex = i;
-            }
-        }
-        double[] calculatedTStartPoint = {smoothedPath[tValueIndex][0], smoothedPath[tValueIndex][1]};
-        double[] calculatedTEndPoint = {smoothedPath[tValueIndex+1][0], smoothedPath[tValueIndex+1][1]};
-        double[] lookaheadPoint = Functions.Vectors.add(calculatedTStartPoint,Functions.Vectors.scale(newTValue,Functions.Vectors.subtract(calculatedTEndPoint, calculatedTStartPoint)));
-
-    }
-
-    private double [] calculateTargetVelocities(double[][] smoothedPath, double k ){
-        double[] targetVelocities = new double[smoothedPath.length];
-        double a = MAXIMUM_ACCELERATION;
-        for (int i = smoothedPath.length-1; i>=0; i--){
-            double distance = Math.hypot(Math.abs(smoothedPath[i][0] - smoothedPath[i+1][0]), Math.abs(smoothedPath[i+1][1]-smoothedPath[i][1]));
-            double targetVelocity = Math.min(k/calculateCurvature(smoothedPath)[i], Math.sqrt(targetVelocities[i+1] + 2 *a* distance));
-        }
-        return targetVelocities;
-    }
-
-    private double calculateClosestPoint(double[][] smoothedPath, double robotX, double robotY){
-        double [] distances = new double[smoothedPath.length];
-        for(int i = lastClosestPoint; i<smoothedPath.length; i++){
-            distances[i] = distanceFormula(smoothedPath[i][0],smoothedPath[i][1], robotX,robotY);
-        }
-        return distances[calculateSmallestValue(distances)];
-    }
-    private double[] calculateCurvature(double[][]smoothedPath){
-        double [] curvatureArray = new double[smoothedPath.length];
-        curvatureArray[0] = 0;
-        curvatureArray[smoothedPath.length] =0;
-        for(int i = 1; i<smoothedPath.length ; i++){
-            double x1 = smoothedPath[i][0] + 0.0001;
-            double y1 = smoothedPath [i][1];
-
-            double x2 = smoothedPath[i-1][0];
-            double y2 = smoothedPath [i-1][1];
-
-            double x3 = smoothedPath[i+1][0];
-            double y3 = smoothedPath [i+1][1];
-
-            double k1 = 0.5*(Math.pow(x1,2) + Math.pow(y1,2)-Math.pow(x2,2)-Math.pow(y2,2))/(x1-x2);
-            double k2 = (y1-y2)/(x1-x2);
-
-            double b = 0.5*(Math.pow(x2,2)-2*x2*k1+Math.pow(y2,2)-Math.pow(x3,2)+2*x3*k1-Math.pow(y3,2))/(x3*k2-y3+y2-x2*k2);
-            double a = k1-k2*b;
-
-            Double r = new Double(Math.sqrt(Math.pow(x1-a,2) + (Math.pow(y1-b,2))));
-            if (r.isNaN()){
-                r = 0.0;
-            }
-            double curvature = 1/r;
-
-            curvatureArray[i] = curvature;
-        }
-     return curvatureArray;
-    }
-
-    /**
-     * this is an ed function that calculates the fractional index i think
-     * @param lineStart
-     * @param lineEnd
-     * @param lookaheadDistance
-     * @return
-     */
-    private double calculateT(double[]lineStart, double []lineEnd, double lookaheadDistance) {
-        double[] robotVector = {currentCoord.getX(), currentCoord.getY()};
-
-        double[] d = Functions.Vectors.subtract(lineStart, lineEnd);
-        double[] f = Functions.Vectors.subtract(lineStart, robotVector);
-        double r = lookaheadDistance;
-
-        double a = Functions.Vectors.dot(d,d);
-        double b = 2 * Functions.Vectors.dot(f,d);
-        double c = Functions.Vectors.dot(f,f) - r * r;
-        double t = Double.NaN;
-
-        double discriminant = b * b - 4 * a * c;
-        if (discriminant < 0) {
-            // no intersection
-        } else {
-            // ray didn't totally miss sphere,
-            // so there is a solution to
-            // the equation.
-
-            discriminant = Math.sqrt(discriminant);
-
-            // either solution may be on or off the ray so need to test both
-            // t1 is always the smaller value, because BOTH discriminant and
-            // a are nonnegative.
-            double t1 = (-b - discriminant) / (2 * a);
-            double t2 = (-b + discriminant) / (2 * a);
-
-
-            // 3x HIT cases:
-            //          -o->             --|-->  |            |  --|->
-            // Impale(t1 hit,t2 hit), Poke(t1 hit,t2>1), ExitWound(t1<0, t2 hit),
-
-            // 3x MISS cases:
-            //       ->  o                     o ->              | -> |
-            // FallShort (t1>1,t2>1), Past (t1<0,t2<0), CompletelyInside(t1<0, t2>1)
-
-            if (t1 >= 0 && t1 <= 1) {
-                // t1 is the intersection, and it's closer than t2
-                // (since t1 uses -b - discriminant)
-                // Impale, Poke
-                t = t1;
-            }
-            if (t2>=0 && t2<=1) {
-                t = t2;
-            }
-
-
-        }
-        return t;
-    }
-    private double [] calculateDistanceAtPoint(double[][] smoothPath){
-        double[] distanceArray = new double[smoothPath.length];
-        distanceArray[0] = 0;
-        for (int i = 1; i<=smoothPath.length; i++){
-            distanceArray[i] = distanceArray[i-1] + Math.hypot(Math.abs(smoothPath[i][0] - smoothPath[i-1][0]), Math.abs(smoothPath[i-1][1]-smoothPath[i][1]));
-        }
-        return distanceArray;
-    }
-
-    public double[][] smoothPath(double[][] path, double weight_data, double weight_smooth, double tolerance)
-    {
-
-        //copy array
-        double[][] newPath = doubleArrayCopy(path);
-
-        double change = tolerance;
-        while(change >= tolerance)
-        {
-            change = 0.0;
-            for(int i=1; i<path.length-1; i++)
-                for(int j=0; j<path[i].length; j++)
-                {
-                    double aux = newPath[i][j];
-                    newPath[i][j] += weight_data * (path[i][j] - newPath[i][j]) + weight_smooth * (newPath[i-1][j] + newPath[i+1][j] - (2.0 * newPath[i][j]));
-                    change += Math.abs(aux - newPath[i][j]);
-                }
-        }
-
-        return newPath;
-
-    }
-    public static double[][] doubleArrayCopy(double[][] arr)
-    {
-
-        //size first dimension of array
-        double[][] temp = new double[arr.length][arr[0].length];
-
-        for(int i=0; i<arr.length; i++)
-        {
-            //Resize second dimension of array
-            temp[i] = new double[arr[i].length];
-
-            //Copy Contents
-            for(int j=0; j<arr[i].length; j++)
-                temp[i][j] = arr[i][j];
-        }
-
-        return temp;
-
-    }
-    private double[][] inject(double[][] orig, int numToInject) {
-        double morePoints[][];
-
-        //create extended 2 Dimensional array to hold additional points
-        morePoints = new double[orig.length + ((numToInject)*(orig.length-1))][2];
-
-        int index=0;
-
-        //loop through original array
-        for(int i=0; i<orig.length-1; i++)
-        {
-            //copy first
-            morePoints[index][0] = orig[i][0];
-            morePoints[index][1] = orig[i][1];
-            index++;
-
-            for(int j=1; j<numToInject+1; j++)
-            {
-                //calculate intermediate x points between j and j+1 original points
-                morePoints[index][0] = j*((orig[i+1][0]-orig[i][0])/(numToInject+1))+orig[i][0];
-
-                //calculate intermediate y points  between j and j+1 original points
-                morePoints[index][1] = j*((orig[i+1][1]-orig[i][1])/(numToInject+1))+orig[i][1];
-
-                index++;
-            }
-        }
-
-        //copy last
-        morePoints[index][0] =orig[orig.length-1][0];
-        morePoints[index][1] =orig[orig.length-1][1];
-        index++;
-
-        return morePoints;
     }
 
     @Override
@@ -425,12 +202,13 @@ public class WHSRobotImpl implements WHSRobot {
     @Override
     public void estimatePosition() {
         encoderDeltas = drivetrain.getEncoderDelta();
-        distance = drivetrain.encToMM((encoderDeltas[0] + encoderDeltas[1])/2);
-        robotX += distance*Math.cos(Math.toRadians(getCoordinate().getHeading()));
-        robotY += distance*Math.sin(Math.toRadians(getCoordinate().getHeading()));
+        distance = drivetrain.encToMM((encoderDeltas[0] + encoderDeltas[1]) / 2);
+        robotX += distance * Functions.cosd(getCoordinate().getHeading());
+        robotY += distance * Functions.sind(getCoordinate().getHeading());
         currentCoord.setX(robotX);
         currentCoord.setY(robotY);
     }
+
     @Override
     public void estimateHeading() {
         double currentHeading;
@@ -458,44 +236,41 @@ public class WHSRobotImpl implements WHSRobot {
         return currentCoord;
     }
 
-    public Position body2field(Position bodyVector)
-    {
+    public Position body2field(Position bodyVector) {
         Position fieldVector;
         double heading = currentCoord.getHeading();
 
-        double[][] C_b2f = {{cosd(heading),  -Functions.sind(heading),  0},
-                {Functions.sind(heading),   cosd(heading),  0},
-                {0,                         0,                        1}};
+        double[][] C_b2f = {{cosd(heading), -Functions.sind(heading), 0},
+                {Functions.sind(heading), cosd(heading), 0},
+                {0, 0, 1}};
 
-        fieldVector = Functions.transformCoordinates(C_b2f,bodyVector);
+        fieldVector = Functions.transformCoordinates(C_b2f, bodyVector);
         return fieldVector;
 
     }
 
-    public Position field2body(Position fieldVector)
-    {
+    public Position field2body(Position fieldVector) {
         Position bodyVector;
         double heading = currentCoord.getHeading();
 
-        double[][] C_f2b = {{ cosd(heading),   Functions.sind(heading),  0},
-                {-Functions.sind(heading),   cosd(heading),  0},
-                { 0,                         0,                        1}};
+        double[][] C_f2b = {{cosd(heading), Functions.sind(heading), 0},
+                {-Functions.sind(heading), cosd(heading), 0},
+                {0, 0, 1}};
 
-        bodyVector = Functions.transformCoordinates(C_f2b,fieldVector);
+        bodyVector = Functions.transformCoordinates(C_f2b, fieldVector);
         return bodyVector;
 
     }
 
-    public Position front2back(Position frontVector)
-    {
+    public Position front2back(Position frontVector) {
         Position backVector;
         double heading = 180;
 
-        double[][] C_f2b = {{ -1,  0, 0},
-                {  0, -1, 0},
-                {  0,  0, 1}};
+        double[][] C_f2b = {{-1, 0, 0},
+                {0, -1, 0},
+                {0, 0, 1}};
 
-        backVector = Functions.transformCoordinates(C_f2b,frontVector);
+        backVector = Functions.transformCoordinates(C_f2b, frontVector);
         return backVector;
     }
 

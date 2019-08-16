@@ -72,8 +72,11 @@ public class IMU {
 
     // Returns the linear acceleration in the z direction
     public double getZAcceleration() {
-        double zAccel = imu.getLinearAcceleration().zAccel;
-        return zAccel;
+        return imu.getLinearAcceleration().zAccel;
+    }
+
+    public double getYAcceleration() {
+        return imu.getLinearAcceleration().yAccel;
     }
 
     // Determines if the linear acceleration in the z direction is over the threshold
@@ -83,6 +86,10 @@ public class IMU {
             return true;
         }
         return false;
+    }
+
+    public double getAngularVelocity() {
+        return imu.getAngularVelocity().zRotationRate;
     }
 
     public void setImuBias(double vuforiaHeading){
