@@ -24,14 +24,10 @@ public class estimatePositionTest extends OpMode {
     public void loop() {
 
         robot.drivetrain.operate(-gamepad1.left_stick_y, -gamepad1.right_stick_y);
-        currentAccel = Math.abs(robot.imu.getYAcceleration());
         robot.estimateHeading();
         robot.estimatePosition();
-        if (currentAccel > maxAccel){
-            maxAccel = currentAccel;
-        }
-        telemetry.addData("Max Y Accel",maxAccel);
-        /*telemetry.addData("x", robot.getCoordinate().getX());
+
+        telemetry.addData("x", robot.getCoordinate().getX());
         telemetry.addData("y", robot.getCoordinate().getY());
         telemetry.addData("IMU", robot.imu.getHeading());
         telemetry.addData("X", robot.getCoordinate().getX());
@@ -44,7 +40,7 @@ public class estimatePositionTest extends OpMode {
         telemetry.addData("BR Position", robot.drivetrain.backRight.getCurrentPosition());
         telemetry.addData("X heading: ", robot.imu.getThreeHeading()[0]);
         telemetry.addData("Y heading: ", robot.imu.getThreeHeading()[1]);
-        telemetry.addData("Z heading: ", robot.imu.getThreeHeading()[2]);*/
+        telemetry.addData("Z heading: ", robot.imu.getThreeHeading()[2]);
 
     }
 }

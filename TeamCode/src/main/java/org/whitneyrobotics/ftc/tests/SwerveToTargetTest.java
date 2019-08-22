@@ -14,7 +14,7 @@ import lib.util.SwerveToTarget;
 @Autonomous(name = "Swerve to target test" )
 public class SwerveToTargetTest extends OpMode {
     WHSRobotImpl robot;
-    Coordinate startingCoordinate = new Coordinate(0,0,0,0);
+    Coordinate startingCoordinate = new Coordinate(0,0,0,90);
     Position p1 = new Position(0, 300, 150);
     Position p2 = new Position(600,600,150);
     Position[] positions = {startingCoordinate.getPos(), p1, p2};
@@ -24,7 +24,7 @@ public class SwerveToTargetTest extends OpMode {
     public void init() {
         robot = new WHSRobotImpl(hardwareMap);
         robot.setInitialCoordinate(startingCoordinate);
-        swerve1 = new SwerveToTarget(0.005, positions, 10, 0.8542, 0.001, 3, 80, robot.drivetrain.getTrackWidth());
+        swerve1 = new SwerveToTarget(0.005, 0.245 ,0.542, positions, 10, 0.8542, 0.001, 2, 50, robot.drivetrain.getTrackWidth());
     }
 
     @Override
@@ -44,5 +44,9 @@ public class SwerveToTargetTest extends OpMode {
         for (int i = 0; i < swerve1.smoothedPath.length; i++) {
             telemetry.addData("point" + i, swerve1.smoothedPath[i][0] + ", " + swerve1.smoothedPath[i][1]);
         }
+        for (int i = 0; i < swerve1.targetVelocities.length; i++) {
+            telemetry.addData("velocity" + i, swerve1.targetVelocities[i]);
+        }
+        telemetry.addData("lookahead point",  swerve1.lookaheadPoint[0] + ", " + swerve1.lookaheadPoint[1]);
     }
 }

@@ -76,7 +76,7 @@ public class Functions {
      * @param input                   the thing you want to limit
      * @param maxRateOfChange         the max speed at which it should change
      * @param time                    the time at which you are calling the method
-     * @param lastRateLimiterCallTime the time at which u last called this method
+     * @param lastRateLimiterCallTime the time at which you last called this method
      * @return Returns the new limited rate
      */
     public static double rateLimiter(double input, double maxRateOfChange, double time, double lastRateLimiterCallTime) {
