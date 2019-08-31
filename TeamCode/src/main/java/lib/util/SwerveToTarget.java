@@ -19,6 +19,7 @@ public class SwerveToTarget {
 
     public double[] targetVelocities;
 
+    public double lastRateLimiterOutput = 0.0;
     private double[] lastTargetWheelVelocities = {0.0, 0.0};
     double lastTime;
     double kP;
@@ -26,6 +27,8 @@ public class SwerveToTarget {
     double kA;
 
     public double[] lookaheadPoint;
+
+    private double[]currentTargetWheelVelocities;
 
     public SwerveToTarget(double kP, double kV, double kA, Position[] targetPositions, int numToInject, double weightSmooth, double tolerance, double velocityConstant, double lookaheadDistance, double trackWidth) {
         this.kP = kP;
@@ -66,7 +69,7 @@ public class SwerveToTarget {
         double curvature = calculateCurvature(lookaheadDistance, lookaheadPoint);
         double targetVelocityAtClosestPoint = targetVelocities[calculateIndexOfClosestPoint(smoothedPath)];
 
-        double[] currentTargetWheelVelocities = calculateTargetWheelVelocities(targetVelocityAtClosestPoint, curvature);
+        currentTargetWheelVelocities = calculateTargetWheelVelocities(targetVelocityAtClosestPoint, curvature);
         double deltaTime = System.nanoTime()/1E9 - lastTime;
         double[] targetWheelAccelerations = {(currentTargetWheelVelocities[0]-lastTargetWheelVelocities[0]) / deltaTime, (currentTargetWheelVelocities[1]-lastTargetWheelVelocities[1]) / deltaTime};
 
@@ -312,7 +315,14 @@ public class SwerveToTarget {
         double leftVelocity = targetVelocity * (2 + curvature * trackWidth) / 2;
         double rightVelocity = targetVelocity * (2 - curvature * trackWidth) / 2;
 
+        leftVelocity = Functions.rateLimiter(leftVelocity, MAXIMUM_ACCELERATION, System.nanoTime()/1e9, lastTime, lastRateLimiterOutput);
+        rightVelocity = Functions.rateLimiter(rightVelocity, MAXIMUM_ACCELERATION, System.nanoTime()/1e9, lastTime, lastRateLimiterOutput);
+
         double[] wheelVelocities = {leftVelocity, rightVelocity};
         return wheelVelocities;
+    }
+
+    public double[]getCurrentTargetWheelVelocities(){
+        return currentTargetWheelVelocities;
     }
 }

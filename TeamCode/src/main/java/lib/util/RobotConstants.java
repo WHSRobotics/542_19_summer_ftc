@@ -1,8 +1,8 @@
 package lib.util;
 
-//import com.acmerobotics.dashboard.config.Config;
+import com.acmerobotics.dashboard.config.Config;
 
-//@Config
+@Config
 public class RobotConstants {
     public static double leftMultiplier = 1;
     public static double rightMultiplier = 1;
@@ -32,4 +32,8 @@ public class RobotConstants {
 
     public static double rotateTestAngle = 45;
     public static boolean rotateOrientation = true;
+
+    public static double S_KP = 0.0;
+    public static double S_KV = 0.0;
+    public static double S_KA = 0.0;
 }

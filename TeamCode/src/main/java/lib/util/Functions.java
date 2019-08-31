@@ -4,8 +4,6 @@ package lib.util;
  * General purpose functions class
  */
 public class Functions {
-    public static double lastKnownRate = 0;
-    public static double limitedRate;
 
     public static double calculateDistance(Position current, Position target) {
         double distance;
@@ -79,11 +77,9 @@ public class Functions {
      * @param lastRateLimiterCallTime the time at which you last called this method
      * @return Returns the new limited rate
      */
-    public static double rateLimiter(double input, double maxRateOfChange, double time, double lastRateLimiterCallTime) {
+    public static double rateLimiter(double input, double maxRateOfChange, double time, double lastRateLimiterCallTime, double lastRateLimiterOutput) {
         double maxChange = (time - lastRateLimiterCallTime) * maxRateOfChange;
-        limitedRate += constrain(input - lastKnownRate, -maxChange, maxChange);
-        lastKnownRate = limitedRate;
-        return limitedRate;
+        return constrain(input - lastRateLimiterOutput, -maxChange, maxChange);
 
     }
 
