@@ -19,24 +19,29 @@ import lib.util.SwerveToTarget;
 @Autonomous(name = "Swerve to target test" )
 public class SwerveToTargetTest extends OpMode {
     WHSRobotImpl robot;
-    Coordinate startingCoordinate = new Coordinate(0,0,0,90);
-    Position p1 = new Position(0, 3000, 150);
-    Position p2 = new Position(600,600,150);
-    Position[] positions = {startingCoordinate.getPos(), p1};
+    Coordinate startingCoordinate = new Coordinate(0,0,0,0);
+    Position p1 = new Position(600,0,150);
+    Position p1_5 = new Position(600,600,150);
+    Position p2 = new Position(600,1200,150);
+    Position p3 = new Position(0,1200,150);
+    Position p4 = new Position(0,0,150);
+
+
+    Position[] positions = {startingCoordinate.getPos(), p1,p1_5,p2,p3};
     SwerveToTarget swerve1;
     FtcDashboard dashboard = FtcDashboard.getInstance();
     Telemetry dashboardTelemetry = dashboard.getTelemetry();
     double kp = RobotConstants.S_KP;
     double kv = RobotConstants.S_KV;
     double ka = RobotConstants.S_KA;
-
+    double velocityConstant = RobotConstants.S_VC;
     @Override
     public void init() {
         TelemetryPacket packet = new TelemetryPacket();
         telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
         robot = new WHSRobotImpl(hardwareMap);
         robot.setInitialCoordinate(startingCoordinate);
-        swerve1 = new SwerveToTarget(kp, kv ,ka, positions, 245, 0.8542, 0.001, 2, 300, robot.drivetrain.getTrackWidth());
+        swerve1 = new SwerveToTarget(kp, kv ,ka, positions, 25, .99, 0.001, velocityConstant, 300, robot.drivetrain.getTrackWidth());
         telemetry.setMsTransmissionInterval(10);
 
     }

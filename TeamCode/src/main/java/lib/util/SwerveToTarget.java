@@ -1,12 +1,14 @@
 package lib.util;
 
+import android.arch.core.util.Function;
+
 public class SwerveToTarget {
 
     Coordinate currentCoord;
     double lookaheadDistance;
     double trackWidth;
 
-    private static double MAXIMUM_ACCELERATION = 2000.0; // mm/s^2
+    private static double MAXIMUM_ACCELERATION = 400.0; // mm/s^2
     public int lastClosestPointIndex;
     private int lastIndex = 0;
     private double currentTValue = 0;
@@ -209,7 +211,7 @@ public class SwerveToTarget {
         for (int i = smoothedPath.length - 2; i >= 0; i--) { //works backwards as we need to know last point's velocity to calculate current point's
 
             // distance from this current point to next point
-            double distance = Math.hypot(Math.abs(smoothedPath[i][0] - smoothedPath[i + 1][0]), Math.abs(smoothedPath[i + 1][1] - smoothedPath[i][1]));
+            double distance = Functions.distanceFormula(smoothedPath[i][0], smoothedPath[i][1], smoothedPath[i+1][0], smoothedPath[i+1][1]);
 
             // finds the smaller value between the velocity constant / the curvature and a new target velocity
             double targetVelocity = Math.min(k / calculateTargetCurvatures(smoothedPath)[i], Math.sqrt(Math.pow(targetVelocities[i + 1],2) + 2 * a * distance));
